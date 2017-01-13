@@ -1,39 +1,37 @@
-/*-----------------------------------------------------------------------------
-This template demonstrates how to use an IntentDialog with a LuisRecognizer to add 
-natural language support to a bot. 
-For a complete walkthrough of creating this type of bot see the article at
-http://docs.botframework.com/builder/node/guides/understanding-natural-language/
------------------------------------------------------------------------------*/
-"use strict";
-var builder = require("botbuilder");
-var botbuilder_azure = require("botbuilder-azure");
 
-var useEmulator = (process.env.NODE_ENV == 'development');
 
-var connector = useEmulator ? new builder.ChatConnector() : new botbuilder_azure.BotServiceConnector({
-    appId: process.env['MicrosoftAppId'],
-    appPassword: process.env['MicrosoftAppPassword'],
-    stateEndpoint: process.env['BotStateEndpoint'],
-    openIdMetadata: process.env['BotOpenIdMetadata']
+// Reference the packages we require so that we can use them in creating the bot
+var restify = require('restify');
+var builder = require('botbuilder');
+
+var rp = require('request-promise');
+
+// Static variables that we can use anywhere in app.js
+var BINGNEWSKEY = 'cbfe538a5a9a44b0ae989bdaa13507df';
+var BINGCVKEY = 'a5ac77a11c4d4143be4b902dfd0724e8';
+//=========================================================
+// Bot Setup
+//=========================================================
+
+// Setup Restify Server
+// Listen for any activity on port 3978 of our local server
+var server = restify.createServer();
+server.listen(process.env.port || process.env.PORT || 3978, function () {
+   console.log('%s listening to %s', server.name, server.url); 
 });
 
+// Create chat bot
+var connector = new builder.ChatConnector({
+    appId: 'c04e3f2a-6012-49a5-9589-7e6587016c8e',
+    appPassword: 'vcaNB6g6cLkddYPKgqKLmt1'
+});
 var bot = new builder.UniversalBot(connector);
-
-// Make sure you add code to validate these fields
-// var luisAppId = process.env.LuisAppId;
-// var luisAPIKey = process.env.LuisAPIKey;
-// var luisAPIHostName = process.env.LuisAPIHostName || 'api.projectoxford.ai';
-
-// const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
+// If a Post request is made to /api/messages on port 3978 of our local server, then we pass it to the bot connector to handle
+server.post('/api/messages', connector.listen());
 
 const LuisModelUrl = 'https://api.projectoxford.ai/luis/v2.0/apps/f1fe89c1-2004-4300-bd08-fb0d423a9699?subscription-key=2dd582fbf9de43d8be36029312dc4cd5&verbose=true';
+var recogniser = new builder.LuisRecognizer(LuisModelUrl);
 
-// Main dialog with LUIS
-var recognizer = new builder.LuisRecognizer(LuisModelUrl);
-var intents = new builder.IntentDialog({ recognizers: [recognizer] })
-/*
-.matches('<yourIntent>')... See details at http://docs.botframework.com/builder/node/guides/understanding-natural-language/
-*/
 var intents = new builder.IntentDialog({recognizers:[recogniser]});
 intents.matches(/\b(hi|hello|hey)\b/i,'/sayHi');
 intents.matches('getNews', "/giveNews");
@@ -51,6 +49,7 @@ bot.dialog('/sayHi', [
     function (session){
         builder.Prompts.text(session, "Hello there,  What's your name?");
     }, function(session, results){
+        console.log(results);
         session.endDialog("Nice to meet you " + results.response + "!");
     }
 ])
@@ -170,15 +169,3 @@ bot.dialog('/giveImageAnalysis', [
 //     // Send 'hello world' to the user
 //     session.send("Hello World");
 // });
-
-if (useEmulator) {
-    var restify = require('restify');
-    var server = restify.createServer();
-    server.listen(3978, function() {
-        console.log('test bot endpont at http://localhost:3978/api/messages');
-    });
-    server.post('/api/messages', connector.listen());    
-} else {
-    module.exports = { default: connector.listen() }
-}
-
